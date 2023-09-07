@@ -18,8 +18,12 @@
 * 2 along with this work; if not, write to the Free Software Foundation,
 * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+configurations {
+    javafx
+}
 
 dependencies {
+    javafx project(path: ':javafx', configuration: 'archives')
     compile project(path: ':openjdksrc', configuration: 'archives')
 }
 
@@ -27,6 +31,17 @@ task copySource(type: Copy) {
     dependsOn project.configurations.compile
     from tarTree(project.configurations.compile.singleFile)
     into buildRoot
+}
+
+task createJavafxOverlay(type: Copy) {
+    dependsOn project.configurations.javafx
+    from tarTree(project.configurations.javafx.singleFile)
+    into "$buildDir/javafx"
+    eachFile {
+        if (it.path.startsWith('rt/')) {
+            it.path = it.path.replace('rt/', 'jre/')
+        }
+    }
 }
 
 task configureBuild(type: Exec) {
@@ -70,6 +85,7 @@ task copyCacerts(type: Copy) {
 
 task copyImage() {
     dependsOn copyCacerts
+    dependsOn createJavafxOverlay
 
     doLast {
         // Copy image
@@ -90,6 +106,11 @@ task copyImage() {
             include "commitId.txt"
             include "version.txt"
             into "$buildRoot/build/j2re-image"
+        }
+
+        exec {
+            workingDir createJavafxOverlay.destinationDir
+            commandLine 'cp', '-Rf', '--parents', 'bin', 'jre', 'lib', 'man/man1', 'javafx-src.zip', "$buildRoot/build/j2re-image"
         }
     }
 }
