@@ -256,6 +256,8 @@ class TransportContext implements ConnectionContext {
                     SSLLogger.warning(
                         "Warning: failed to send warning alert " + alert, ioe);
                 }
+            } finally {
+                outputRecord.recordLock.unlock();
             }
         }
     }
@@ -552,7 +554,8 @@ class TransportContext implements ConnectionContext {
 
         // Need a lock here so that the user_canceled alert and the
         // close_notify alert can be delivered together.
-        synchronized (outputRecord) {
+        outputRecord.recordLock.lock();
+        try {
             try {
                 // send a user_canceled alert if needed.
                 if (useUserCanceled) {
@@ -564,8 +567,12 @@ class TransportContext implements ConnectionContext {
             } finally {
                 outputRecord.close();
             }
+
+        } finally {
+            outputRecord.recordLock.unlock();
         }
     }
+
 
     // Note; HandshakeStatus.FINISHED status is retrieved in other places.
     HandshakeStatus getHandshakeStatus() {
